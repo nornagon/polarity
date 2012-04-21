@@ -11,6 +11,10 @@ atom.input.bind atom.key.P, 'edit'
 atom.input.bind atom.button.LEFT, 'click'
 atom.input.bind atom.key.SPACE, 'select'
 
+rnd = (n) -> n * Math.random()
+mrnd = (n) -> n * (2*Math.random()-1)
+irnd = (n) -> Math.floor n * Math.random()
+
 parseXY = (k) ->
   [x,y] = k.split /,/
   {x:parseInt(x), y:parseInt(y)}
@@ -33,10 +37,14 @@ Tiles =
 		draw: (x, y) ->
 			ctx.fillStyle = 'green'
 			ctx.fillRect x, y, TILE_SIZE, TILE_SIZE
+	antimatter:
+		draw: (x, y) ->
+			ctx.fillStyle = 'pink'
+			ctx.fillRect x, y, TILE_SIZE, TILE_SIZE
 
 
 levels = [
-	{"tiles":{"0,0":"block","1,0":"block","2,0":"block","3,0":"block","5,12":"block","6,12":"block","7,12":"block","8,12":"block","9,12":"block","9,6":"block","11,12":"block","12,12":"block","21,11":"block","31,11":"block","27,12":"block","24,12":"block","19,12":"positive","29,12":"block","28,12":"block","15,12":"block","26,12":"block","13,12":"positive","23,12":"block","21,12":"block","20,12":"block","18,12":"block","17,12":"block","32,11":"block","18,11":"block","5,11":"block","5,10":"block","5,9":"block","5,8":"block","5,7":"block","5,6":"block","6,6":"block","7,6":"block","8,6":"block","10,12":"block","15,11":"block","36,11":"block","14,12":"block","10,6":"block","11,6":"block","34,6":"block","36,7":"block","36,8":"block","11,5":"block","35,6":"block","36,6":"block","36,9":"block","11,4":"block","12,4":"block","13,4":"block","14,4":"block","15,4":"block","16,4":"block","17,4":"block","18,4":"block","19,4":"block","36,10":"block","35,11":"block","36,12":"block","35,12":"block","20,4":"block","21,4":"block","22,4":"block","23,4":"block","24,4":"block","25,4":"block","26,4":"block","27,4":"block","33,12":"block","32,12":"block","34,12":"block","25,12":"negative","25,13":"negative","30,11":"block","31,12":"block","29,11":"block","30,6":"block","31,6":"block","32,6":"block","30,13":"block","30,12":"block","33,6":"block","34,11":"block","13,13":"positive","19,13":"positive","33,11":"block","13,11":"block","14,11":"block","16,11":"block","17,11":"block","19,11":"block","20,11":"block","22,11":"block","23,11":"block","24,11":"block","25,11":"block","26,11":"block","12,11":"block","11,11":"block","10,11":"block","9,11":"block","8,11":"block","7,11":"block","6,11":"block","27,11":"block","28,11":"block","30,5":"block","30,4":"block","29,4":"block","28,4":"block"}}
+	{"tiles":{"32,6":"block","11,11":"block","28,11":"block","33,6":"block","34,11":"block","13,13":"positive","19,13":"positive","33,11":"block","13,11":"block","9,6":"block","16,11":"block","17,11":"block","21,11":"block","31,11":"block","29,4":"block","12,11":"block","19,12":"positive","30,5":"block","30,4":"block","20,11":"block","28,4":"block","13,12":"positive","26,11":"block","25,11":"block","24,11":"block","23,11":"block","22,11":"block","32,11":"block","18,11":"block","5,11":"block","5,10":"block","5,9":"block","5,8":"block","5,7":"block","5,6":"block","6,6":"block","7,6":"block","8,6":"block","14,11":"block","15,11":"block","36,11":"block","19,11":"block","10,6":"block","11,6":"block","34,6":"block","36,7":"block","36,8":"block","11,5":"block","35,6":"block","36,6":"block","36,9":"block","11,4":"block","12,4":"block","13,4":"block","14,4":"block","15,4":"block","16,4":"block","17,4":"block","18,4":"block","19,4":"block","36,10":"block","35,11":"block","8,11":"block","10,11":"block","20,4":"block","21,4":"block","22,4":"block","23,4":"block","24,4":"block","25,4":"block","26,4":"block","27,4":"block","7,11":"block","6,11":"block","9,11":"block","25,12":"negative","25,13":"negative","30,11":"block","27,11":"block","29,11":"block","30,6":"block","31,6":"block"}, "player_start": {x:7,y:8}}
 ]
 
 
@@ -58,6 +66,11 @@ class Level
 		return unless Level.blocks type
 		t.shape = new cp.BoxShape2 @space.staticBody,
 			{l:x*TILE_SIZE, b:y*TILE_SIZE, r:(x+1)*TILE_SIZE, t:(y+1)*TILE_SIZE}
+		t.shape.setElasticity 0.4
+		t.shape.setFriction 0.8
+		if type is 'antimatter'
+			t.shape.collision_type = 'antimatter'
+			t.shape.sensor = true
 		@space.addShape t.shape
 
 	export: ->
@@ -82,8 +95,7 @@ class Level
 		if type in ['positive','negative']
 			@nodes[[x,y]] = {x,y,type}
 
-	@blocks: (type) ->
-		type == 'block'
+	@blocks: (type) -> type in ['block', 'antimatter']
 
 	draw: ->
 		for {x, y, type} in @tiles
@@ -93,11 +105,20 @@ class Level
 
 class Game extends atom.Game
 	constructor: ->
-		@paused = false
+		@state = 'playing'
+		@level = new Level levels[0]
+		@reset()
 
+	reset: ->
+		@frameNo = 0
+		@timers = {}
 		@space = new cp.Space
+		@playerDead = false
 
-		@level = new Level {tiles: {'0,0':'block','1,0':'block','2,0':'block','3,0':'block'}}
+		@space.addCollisionHandler 'player', 'antimatter', (arb) =>
+			@space.addPostStepCallback @playerDied
+			return false
+
 		@level.occupy @space
 
 		@space.gravity = v(0,-50)
@@ -115,13 +136,52 @@ class Game extends atom.Game
 		
 
 		@player = new cp.Body 1, cp.momentForCircle 1, 0, 10, v(0,0)
-		@player.setPos v(200, 200)
+		@player.setPos v(@level.player_start.x * TILE_SIZE, @level.player_start.y * TILE_SIZE)
 		@space.addBody @player
 		shape = @space.addShape new cp.CircleShape @player, 10, v(0,0)
 		shape.setElasticity 0.5
 		shape.setFriction 0.8
+		shape.collision_type = 'player'
+		shape.draw = ->
+			ctx.fillStyle = ctx.strokeStyle = if atom.input.down 'a' then 'green' else if atom.input.down 's' then 'red' else 'blue'
+			ctx.beginPath()
+			ctx.arc @tc.x, @tc.y, 4, 0, Math.PI*2
+			ctx.fill()
+			ctx.beginPath()
+			ctx.arc @tc.x, @tc.y, 10, 0, Math.PI*2
+			ctx.stroke()
 
-		@state = 'playing'
+
+	playerDied: =>
+		return if @playerDead
+		@playerDead = true
+		@space.removeShape s for s in @player.shapeList
+		@space.removeBody @player
+		@shrapnel @player.p
+		@player = null
+		@in 65, => @reset()
+
+	shrapnel: (p) ->
+		for [0..10]
+			body = new cp.Body 1, cp.momentForCircle 1, 0, 5, v(0,0)
+			shape = new cp.CircleShape body, 5, v(0,0)
+			shape.group = 'shrapnel'
+			body.setPos v(p.x, p.y)
+			body.setVelocity v(mrnd(50), 50+mrnd(20))
+			@space.addBody body
+			@space.addShape shape
+			do (shape, body) =>
+				@in 30+irnd(60), =>
+					@space.removeShape shape
+					@space.removeBody body
+
+	in: (frames, cb) ->
+		(@timers[@frameNo+frames] ?= []).push cb
+	runTimers: ->
+		todo = @timers[@frameNo]
+		if todo
+			delete @timers[@frameNo]
+			t() for t in todo
 
 	update: (dt) ->
 		States[@state].update.call this, dt
@@ -138,10 +198,11 @@ States =
 				@state = 'editing'
 				return
 
-			if atom.input.down 'a'
-				player_polarity = 1
-			else if atom.input.down 's'
-				player_polarity = -1
+			if @player?
+				if atom.input.down 'a'
+					player_polarity = 1
+				else if atom.input.down 's'
+					player_polarity = -1
 
 			force = {x:0, y:0}
 
@@ -164,9 +225,11 @@ States =
 					force.x += f_x
 					force.y += f_y
 
-			@player.applyForce v(force.x, force.y), v(0,0)
+			@player?.applyForce v(force.x, force.y), v(0,0)
 			@space.step 1/30
-			@player.resetForces()
+			@player?.resetForces()
+			@frameNo++
+			@runTimers()
 
 		draw: ->
 			ctx.save()
@@ -175,14 +238,8 @@ States =
 			ctx.scale 0.5, -0.5
 
 			@level.draw()
-
-			ctx.fillStyle = ctx.strokeStyle = if atom.input.down 'a' then 'green' else if atom.input.down 's' then 'red' else 'blue'
-			ctx.beginPath()
-			ctx.arc @player.p.x, @player.p.y, 4, 0, Math.PI*2
-			ctx.fill()
-			ctx.beginPath()
-			ctx.arc @player.p.x, @player.p.y, 10, 0, Math.PI*2
-			ctx.stroke()
+			@space.activeShapes.each (s) ->
+				s.draw()
 
 			ctx.restore()
 
@@ -242,3 +299,40 @@ g.run()
 
 window.onblur = -> g.stop()
 window.onfocus = -> g.run()
+
+cp.PolyShape::draw = ->
+  ctx.beginPath()
+
+  verts = this.tVerts
+  len = verts.length
+  lastPoint = new cp.Vect(verts[len - 2], verts[len - 1])
+  ctx.moveTo(lastPoint.x, lastPoint.y)
+
+  i = 0
+  while i < len
+    p = new cp.Vect(verts[i], verts[i+1])
+    ctx.lineTo(p.x, p.y)
+    i += 2
+  #ctx.fill()
+  ctx.stroke()
+
+cp.SegmentShape::draw = ->
+  oldLineWidth = ctx.lineWidth
+  ctx.lineWidth = Math.max 1, this.r * 2
+  ctx.beginPath()
+  ctx.moveTo @ta.x, @ta.y
+  ctx.lineTo @tb.x, @tb.y
+  ctx.stroke()
+  ctx.lineWidth = oldLineWidth
+
+cp.CircleShape::draw = ->
+  ctx.lineWidth = 3
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.arc @tc.x, @tc.y, @r, 0, 2*Math.PI, false
+
+  # And draw a little radius so you can see the circle roll.
+  ctx.moveTo @tc.x, @tc.y
+  r = cp.v.mult(@body.rot, @r).add @tc
+  ctx.lineTo r.x, r.y
+  ctx.stroke()
