@@ -4336,7 +4336,7 @@ Space.prototype.shapeQuery = function(shape, func)
 /// Schedule a post-step callback to be called when cpSpaceStep() finishes.
 Space.prototype.addPostStepCallback = function(func)
 {
-	assertWarn(this.locked,
+	assertSoft(this.locked,
 		"Adding a post-step callback when the space is not locked is unnecessary. " +
 		"Post-step callbacks will not called until the end of the next call to cpSpaceStep() or the next query.");
 	
