@@ -18,6 +18,7 @@ atom.input = {
     @_bindings[key] = action
 
   onkeydown: (e) ->
+    return if e.metaKey or e.shiftKey or e.ctrlKey
     action = @_bindings[eventCode e]
     return unless action
 
@@ -28,6 +29,7 @@ atom.input = {
     e.preventDefault()
 
   onkeyup: (e) ->
+    return if e.metaKey or e.shiftKey or e.ctrlKey
     action = @_bindings[eventCode e]
     return unless action
     @_released.push action
