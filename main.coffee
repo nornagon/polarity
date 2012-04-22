@@ -569,7 +569,6 @@ States =
 			if atom.input.pressed 'select'
 				@state = 'editing'
 			if atom.input.pressed 'click'
-				console.log atom.input.mouse.x, atom.input.mouse.y
 				if 0 <= atom.input.mouse.x-100 < Object.keys(Tiles).length*TILE_SIZE and 0 <= atom.input.mouse.y-100 < TILE_SIZE
 					tile_type = Object.keys(Tiles)[Math.floor (atom.input.mouse.x - 100)/TILE_SIZE]
 				else
