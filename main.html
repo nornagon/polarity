@@ -15,6 +15,10 @@
   width: 100%;
   height: 100%;
   margin: 0; padding: 0;
+  text-align: center;
+}
+html {
+	font: 12px 'Helvetica Neue', 'Helvetica', sans-serif;
 }
 body, html { width: 100%; height: 100%; padding: 0; margin: 0; }
 canvas {
@@ -24,8 +28,13 @@ canvas {
 body {
   background-color: #eee;
 }
+
+.description {
+	margin-top: 4px;
+}
 </style>
-<div class='centerbox'><canvas></canvas></div>
+<div class='centerbox'><div><canvas></canvas><div class='description'>Press 'a' to go positive, 's'
+to go negative. Opposites attract.</div></div></div>
 <script src='atom.js'></script>
 <script src='cp.js'></script>
 <script src='main.js'></script>
