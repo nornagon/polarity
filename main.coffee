@@ -557,6 +557,8 @@ States =
 
 		draw: ->
 			States.playing.draw.call @
+			if @tileToPlace and @state is 'editing'
+				Tiles[@tileToPlace].draw Math.floor(atom.input.mouse.x/TILE_SIZE)*TILE_SIZE, Math.floor(atom.input.mouse.y/TILE_SIZE)*TILE_SIZE
 			ctx.fillStyle = 'red'
 			ctx.beginPath()
 			ctx.arc 8, 8, 5, 0, Math.PI*2
