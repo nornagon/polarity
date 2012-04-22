@@ -175,10 +175,7 @@ class Level
 class Game extends atom.Game
 	constructor: ->
 		@levels = (new Level l for l in level_data)
-		@levelNum = 0
-		@level = @levels[@levelNum]
-		@state = 'playing'
-		@reset()
+		@levelNum = -1
 
 		@state = 'title'
 		States[@state].init?.call this
@@ -336,6 +333,9 @@ States =
 				@makeBall 1,3,20
 			if rnd() < 0.005
 				@makeBall -1,37-irnd(2),20
+
+			if atom.input.pressed 'a'
+				@reachedGoal()
 		draw: ->
 			States.playing.draw.call(this)
 			ctx.fillStyle = 'rgba(29,37,46,0.6)'
@@ -350,9 +350,9 @@ States =
 			ctx.font = '14px "04b19Regular"'
 			#ctx.fillStyle = 'rgb(60, 142, 231)'
 			ctx.fillStyle = 'rgb(143,182,214)'
-			ctx.fillText 'A game by Jeremy Apthorp.', canvas.width/2, 80
+			ctx.fillText 'A game by Jeremy Apthorp', canvas.width/2, 80
 			ctx.fillText 'Made in 48 hours', canvas.width/2, 160
-			ctx.fillText 'for Ludum Dare #23.', canvas.width/2, 176
+			ctx.fillText 'for Ludum Dare #23', canvas.width/2, 176
 
 	playing:
 		update: (dt) ->
@@ -434,13 +434,15 @@ States =
 			@level_name_x = canvas.width + 50
 			@level_anim_t = 0
 		update: (dt) ->
-			vel = (t) ->
-				if 0.4 < t < 1.9
-					30
+			pos = (t) ->
+				if t < 0.4
+					900*t
+				else if t < 1.9
+					900*0.4 + 30*(t-0.4)
 				else
-					900
-			@level_num_x += vel(@level_anim_t) * dt
-			@level_name_x -= vel(@level_anim_t) * dt
+					900*0.4 + 30*1.5 + 900*(t-1.9)
+			@level_num_x = -300 + pos(@level_anim_t)
+			@level_name_x = canvas.width + 50 - pos(@level_anim_t)
 			@level_anim_t += dt
 
 			if @level_anim_t > 2.4
