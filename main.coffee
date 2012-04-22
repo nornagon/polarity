@@ -19,10 +19,10 @@ parseXY = (k) ->
   [x,y] = k.split /,/
   {x:parseInt(x), y:parseInt(y)}
 
-TILE_SIZE = 20
+TILE_SIZE = 10
 
 screenToWorld = (x, y) ->
-	{x: x*2, y: (canvas.height-y)*2}
+	{x: x, y: (canvas.height-y)}
 
 Tiles =
 	block:
@@ -135,20 +135,20 @@ class Game extends atom.Game
 		wall2.setFriction(1)
 		
 
-		@player = new cp.Body 1, cp.momentForCircle 1, 0, 10, v(0,0)
+		@player = new cp.Body 1, cp.momentForCircle 1, 0, 5, v(0,0)
 		@player.setPos v(@level.player_start.x * TILE_SIZE, @level.player_start.y * TILE_SIZE)
 		@space.addBody @player
-		shape = @space.addShape new cp.CircleShape @player, 10, v(0,0)
+		shape = @space.addShape new cp.CircleShape @player, 5, v(0,0)
 		shape.setElasticity 0.5
 		shape.setFriction 0.8
 		shape.collision_type = 'player'
 		shape.draw = ->
 			ctx.fillStyle = ctx.strokeStyle = if atom.input.down 'a' then 'green' else if atom.input.down 's' then 'red' else 'blue'
 			ctx.beginPath()
-			ctx.arc @tc.x, @tc.y, 4, 0, Math.PI*2
+			ctx.arc @tc.x, @tc.y, 2, 0, Math.PI*2
 			ctx.fill()
 			ctx.beginPath()
-			ctx.arc @tc.x, @tc.y, 10, 0, Math.PI*2
+			ctx.arc @tc.x, @tc.y, 5, 0, Math.PI*2
 			ctx.stroke()
 
 
@@ -163,8 +163,8 @@ class Game extends atom.Game
 
 	shrapnel: (p) ->
 		for [0..10]
-			body = new cp.Body 1, cp.momentForCircle 1, 0, 5, v(0,0)
-			shape = new cp.CircleShape body, 5, v(0,0)
+			body = new cp.Body 1, cp.momentForCircle 1, 0, 2, v(0,0)
+			shape = new cp.CircleShape body, 2, v(0,0)
 			shape.group = 'shrapnel'
 			body.setPos v(p.x, p.y)
 			body.setVelocity v(mrnd(50), 50+mrnd(20))
@@ -217,7 +217,7 @@ States =
 					# F = qQ/r^2
 					# take qQ = k for now
 					k = 80
-					norm /= 100
+					norm /= 50
 					if norm < 1 then norm = 1
 					norm2 = norm * norm
 					f_x = k / norm2 * nx
@@ -235,7 +235,7 @@ States =
 			ctx.save()
 			# 0,0 at bottom left
 			ctx.translate 0, canvas.height
-			ctx.scale 0.5, -0.5
+			ctx.scale 1, -1
 
 			@level.draw()
 			@space.activeShapes.each (s) ->
