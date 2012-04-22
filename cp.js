@@ -4350,6 +4350,7 @@ Space.prototype.runPostStepCallbacks = function()
 	for(var i = 0; i < this.postStepCallbacks.length; i++){
 		this.postStepCallbacks[i]();
 	}
+	this.postStepCallbacks = []
 };
 
 // **** Locking Functions
