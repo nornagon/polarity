@@ -16,6 +16,43 @@ atom.input.bind atom.key.N, 'skip'
 atom.input.bind atom.key.B, 'back'
 atom.input.bind atom.key.M, 'name'
 
+sfx =
+	death: 'Death.wav'
+	positive: 'Positive.wav'
+	negative: 'Negative.wav'
+	level: 'Level complete.wav'
+
+sounds = {}
+for s, url of sfx
+  do (s, url) ->
+    atom.loadSound "sounds/#{url}", (error, buffer) ->
+      console.error error if error
+      sounds[s] = buffer if buffer
+
+audioCtx = atom.audioContext
+mixer = audioCtx?.createGainNode()
+mixer.gain.value = 0.3
+mixer?.connect audioCtx.destination
+
+play = (name, time = 0) ->
+  return unless sounds[name] and audioCtx
+  source = audioCtx.createBufferSource()
+  source.buffer = sounds[name]
+  source.connect mixer
+  source.noteOn time
+  source
+
+muted = false
+toggleMute = ->
+  if !muted
+    muted = true
+    mixer?.gain.value = 0
+    e.volume = 0 for e in document.getElementsByTagName 'audio'
+  else
+    muted = false
+    mixer?.gain.value = 1
+    e.volume = 1 for e in document.getElementsByTagName 'audio'
+
 rnd = (n=1) -> n * Math.random()
 mrnd = (n=1) -> n * (2*Math.random()-1)
 irnd = (n) -> Math.floor n * Math.random()
@@ -91,6 +128,9 @@ Tiles =
 		draw: (f,x,y) -> drawFrame @tile, f, x, y
 	player_negative:
 		tile: animAt 5, 32, 48, 11, 11
+		draw: (f,x,y) -> drawFrame @tile, f, x, y
+	player_teleport:
+		tile: animAt 8, 99, 24, 7, 7
 		draw: (f,x,y) -> drawFrame @tile, f, x, y
 
 
@@ -190,6 +230,7 @@ class Game extends atom.Game
 
 		@space.addCollisionHandler 'player', 'antimatter', (arb) =>
 			if not @playerDead
+				play 'death'
 				@playerDead = true
 				@space.addPostStepCallback @playerDied
 			return false
@@ -238,8 +279,12 @@ class Game extends atom.Game
 			that = this
 			shape.draw = ->
 				style = if atom.input.down 'a' then '_positive' else if atom.input.down 's' then '_negative' else ''
+				if @body.teleporting
+					style = "_teleport"
 				tile = "player#{style}"
 				frame = Math.floor((that.frameNo - that.player_anim_start) / 3)
+				if @body.teleporting
+					return if frame >= Tiles[tile].tile.frames
 				if frame >= Tiles[tile].tile.frames then frame = 0
 				Tiles[tile].draw frame, @tc.x-Tiles[tile].tile.w/2, @tc.y-Tiles[tile].tile.w/2
 
@@ -262,9 +307,14 @@ class Game extends atom.Game
 			Tiles[tile].draw 0, @tc.x-Tiles[tile].tile.w/2, @tc.y-Tiles[tile].tile.w/2
 
 	reachedGoal: =>
-		@forward()
-		@state = 'levelTransition'
-		States[@state].init.call this
+		@space.removeBody @player
+		@player.teleporting = true
+		@player_anim_start = @frameNo-1
+		play 'level'
+		@in 60, =>
+			@forward()
+			@state = 'levelTransition'
+			States[@state].init.call this
 	forward: =>
 		if @levelNum >= @levels.length-1
 			@levels.push new Level empty_level
@@ -335,7 +385,9 @@ States =
 				@makeBall -1,37-irnd(2),20
 
 			if atom.input.pressed 'a'
-				@reachedGoal()
+				@forward()
+				@state = 'levelTransition'
+				States[@state].init.call this
 		draw: ->
 			States.playing.draw.call(this)
 			ctx.fillStyle = 'rgba(29,37,46,0.6)'
@@ -367,6 +419,7 @@ States =
 					player_polarity = -1
 
 				if atom.input.pressed('a') or atom.input.pressed('s')
+					play if atom.input.pressed 'a' then 'positive' else 'negative'
 					@player_anim_start = @frameNo
 
 			force_between = (b,p, n) ->

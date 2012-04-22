@@ -106,6 +106,28 @@ atom.canvas.onmouseup = atom.input.onmouseup.bind(atom.input)
 atom.canvas.onmousewheel = atom.input.onmousewheel.bind(atom.input)
 atom.canvas.oncontextmenu = atom.input.oncontextmenu.bind(atom.input)
 
+atom.audioContext = new webkitAudioContext?()
+
+atom.loadSound = (url, callback) ->
+  return callback 'No audio support' unless atom.audioContext
+
+  request = new XMLHttpRequest()
+  request.open 'GET', url, true
+  request.responseType = 'arraybuffer'
+
+  request.onload = ->
+    atom.audioContext.decodeAudioData request.response, (buffer) ->
+      #source = audioCtx.createBufferSource()
+      #source.buffer = buffer
+      callback null, buffer
+    , (error) ->
+      callback error
+
+  try
+    request.send()
+  catch e
+    callback e.message
+
 class Game
   constructor: ->
   update: (dt) ->
