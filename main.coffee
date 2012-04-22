@@ -26,33 +26,49 @@ parseXY = (k) ->
 
 TILE_SIZE = 10
 
+tileset = new Image
+tileset.src = 'ld.gif'
+
+tileAt = (x,y,w=TILE_SIZE/2,h=TILE_SIZE/2) ->
+	{x:x*2,y:y*2,w:w*2,h:h*2}
+animAt = (frames,x,y,w=TILE_SIZE/2,h=TILE_SIZE/2) ->
+	{x:x*2,y:y*2,w:w*2,h:h*2,frames}
+drawTile = (tile, x, y) ->
+	ctx.save()
+	ctx.translate Math.round(x), Math.round(y)+tile.h
+	ctx.scale 1, -1
+	ctx.drawImage tileset, tile.x, tile.y, tile.w, tile.h, 0, 0, tile.w, tile.h
+	ctx.restore()
+drawFrame = (anim, frame, x, y) ->
+	ctx.save()
+	ctx.translate Math.round(x), Math.round(y)+anim.h
+	ctx.scale 1, -1
+	ctx.drawImage tileset, anim.x + frame*anim.w, anim.y, anim.w, anim.h, 0, 0, anim.w, anim.h
+	ctx.restore()
+
 screenToWorld = (x, y) ->
 	{x: x, y: (canvas.height-y)}
 
 Tiles =
 	block:
+		tile: tileAt 20, 5
 		draw: (x, y) ->
-			ctx.fillStyle = 'black'
-			ctx.fillRect x, y, TILE_SIZE, TILE_SIZE
+			drawTile @tile, x, y
 	positive:
-		draw: (x, y) ->
-			ctx.fillStyle = 'red'
-			ctx.fillRect x, y, TILE_SIZE, TILE_SIZE
+		tile: tileAt 10, 0
+		draw: (x, y) -> drawTile @tile, x, y
 		ethereal: true
 	negative:
-		draw: (x, y) ->
-			ctx.fillStyle = 'green'
-			ctx.fillRect x, y, TILE_SIZE, TILE_SIZE
+		tile: tileAt 5, 5
+		draw: (x, y) -> drawTile @tile, x, y
 		ethereal: true
 	antimatter:
-		draw: (x, y) ->
-			ctx.fillStyle = 'pink'
-			ctx.fillRect x, y, TILE_SIZE, TILE_SIZE
+		tile: tileAt 35, 15
+		draw: (x, y) -> drawTile @tile, x, y
 		sensor: true
 	goal:
-		draw: (x, y) ->
-			ctx.fillStyle = 'rgb(228,219,84)'
-			ctx.fillRect x, y, TILE_SIZE, TILE_SIZE
+		tile: tileAt 55, 5
+		draw: (x, y) -> drawTile @tile, x, y
 		sensor: true
 
 	player_start:
@@ -66,6 +82,16 @@ Tiles =
 			ctx.moveTo x+TILE_SIZE, y
 			ctx.lineTo x, y+TILE_SIZE
 			ctx.stroke()
+
+	player:
+		tile: animAt 1, 25, 45
+		draw: (f,x,y) -> drawFrame @tile, f, x, y
+	player_positive:
+		tile: animAt 5, 32, 37, 11, 11
+		draw: (f,x,y) -> drawFrame @tile, f, x, y
+	player_negative:
+		tile: animAt 5, 32, 48, 11, 11
+		draw: (f,x,y) -> drawFrame @tile, f, x, y
 
 
 empty_level = {"tiles":{"5,6":"block","8,6":"block","6,6":"block","7,6":"block"}, "player_start":{x:7,y:8}}
@@ -140,6 +166,7 @@ class Game extends atom.Game
 
 	reset: ->
 		@frameNo = 0
+		@player_anim_start = 0
 		@timers = {}
 		@space = new cp.Space
 		@playerDead = false
@@ -179,14 +206,14 @@ class Game extends atom.Game
 		shape.setElasticity 0.5
 		shape.setFriction 0.8
 		shape.collision_type = 'player'
+		that = this
 		shape.draw = ->
-			ctx.fillStyle = ctx.strokeStyle = if atom.input.down 'a' then 'green' else if atom.input.down 's' then 'red' else 'blue'
-			ctx.beginPath()
-			ctx.arc @tc.x, @tc.y, 2, 0, Math.PI*2
-			ctx.fill()
-			ctx.beginPath()
-			ctx.arc @tc.x, @tc.y, 5, 0, Math.PI*2
-			ctx.stroke()
+			style = if atom.input.down 'a' then '_positive' else if atom.input.down 's' then '_negative' else ''
+			tile = "player#{style}"
+			frame = Math.floor((that.frameNo - that.player_anim_start) / 3)
+			if frame >= Tiles[tile].tile.frames then frame = 0
+			Tiles[tile].draw frame, @tc.x-Tiles[tile].tile.w/2, @tc.y-Tiles[tile].tile.w/2
+
 
 
 	reachedGoal: =>
@@ -233,7 +260,7 @@ class Game extends atom.Game
 		States[@state].update.call this, dt
 
 	draw: ->
-		ctx.fillStyle = 'white'
+		ctx.fillStyle = 'rgb(36,49,61)'
 		ctx.fillRect 0, 0, canvas.width, canvas.height
 		States[@state].draw.call this
 
@@ -249,6 +276,9 @@ States =
 					player_polarity = 1
 				else if atom.input.down 's'
 					player_polarity = -1
+
+				if atom.input.pressed('a') or atom.input.pressed('s')
+					@player_anim_start = @frameNo
 
 			force = {x:0, y:0}
 
