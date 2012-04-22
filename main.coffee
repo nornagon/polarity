@@ -428,6 +428,12 @@ States =
 			ctx.textBaseline = 'top'
 			ctx.fillText (@level.name ? 'Unnamed').toUpperCase(), 3, 3
 
+			if @levelNum is 0
+				if @player.p.y > 10*TILE_SIZE
+					ctx.fillText 'Be positive: press A', 21*TILE_SIZE, 4*TILE_SIZE
+				else
+					ctx.fillText 'Be negative: press S', 24*TILE_SIZE, 11*TILE_SIZE
+
 	levelTransition:
 		init: ->
 			@level_num_x = -300
