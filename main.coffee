@@ -103,6 +103,18 @@ Tiles =
 		tile: tileAt 35, 15
 		draw: (x, y) -> drawTile @tile, x, y
 		sensor: true
+	'antimatter#left':
+		tile: tileAt 25, 15
+		draw: (x, y) -> drawTile @tile, x, y
+		sensor: true
+	'antimatter#down':
+		tile: tileAt 30, 25
+		draw: (x, y) -> drawTile @tile, x, y
+		sensor: true
+	'antimatter#right':
+		tile: tileAt 60, 20
+		draw: (x, y) -> drawTile @tile, x, y
+		sensor: true
 	goal:
 		tile: tileAt 55, 5
 		draw: (x, y) -> drawTile @tile, x, y
@@ -173,7 +185,7 @@ class Level
 			{l:x*TILE_SIZE, b:y*TILE_SIZE, r:(x+1)*TILE_SIZE, t:(y+1)*TILE_SIZE}
 		t.shape.setElasticity 0.4
 		t.shape.setFriction 0.8
-		t.shape.collision_type = type
+		t.shape.collision_type = type.replace(/#.*$/,'')
 		if Tiles[type].sensor
 			t.shape.sensor = true
 		@space.addShape t.shape
