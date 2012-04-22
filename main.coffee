@@ -13,6 +13,8 @@ atom.input.bind atom.key.SPACE, 'select'
 atom.input.bind atom.key.V, 'save'
 atom.input.bind atom.key.R, 'reset'
 atom.input.bind atom.key.N, 'skip'
+atom.input.bind atom.key.B, 'back'
+atom.input.bind atom.key.M, 'name'
 
 rnd = (n) -> n * Math.random()
 mrnd = (n) -> n * (2*Math.random()-1)
@@ -76,6 +78,7 @@ class Level
 			{x,y} = parseXY xy
 			@tiles.push {x, y, type}
 			@nodes[[x,y]] = {x, y, type} if type in ['positive','negative']
+		@name = json.name
 		@player_start = json.player_start
 
 
@@ -94,7 +97,7 @@ class Level
 		@space.addShape t.shape
 
 	export: ->
-		json = {tiles:{}, player_start:@player_start}
+		json = {name:@name, tiles:{}, player_start:@player_start}
 		for t in @tiles
 			json.tiles[[t.x,t.y]] = t.type
 		json
@@ -140,12 +143,18 @@ class Game extends atom.Game
 		@timers = {}
 		@space = new cp.Space
 		@playerDead = false
+		@finishedLevel = false
 
 		@space.addCollisionHandler 'player', 'antimatter', (arb) =>
-			@space.addPostStepCallback @playerDied
+			if not @playerDead
+				@playerDead = true
+				@space.addPostStepCallback @playerDied
 			return false
 		@space.addCollisionHandler 'player', 'goal', (arb) =>
-			@space.addPostStepCallback @reachedGoal
+			if not @finishedLevel
+				@finishedLevel = true
+				@space.addPostStepCallback @reachedGoal
+			return false
 
 		@level.occupy @space
 
@@ -185,10 +194,13 @@ class Game extends atom.Game
 			@levels.push new Level empty_level
 		@level = @levels[++@levelNum]
 		@reset()
+	back: =>
+		if @levelNum > 0
+			@levelNum--
+		@level = @levels[@levelNum]
+		@reset()
 
 	playerDied: =>
-		return if @playerDead
-		@playerDead = true
 		@space.removeShape s for s in @player.shapeList
 		@space.removeBody @player
 		@shrapnel @player.p
@@ -307,6 +319,11 @@ States =
 
 			if atom.input.pressed 'skip'
 				@reachedGoal()
+			if atom.input.pressed 'back'
+				@back()
+
+			if atom.input.pressed 'name'
+				@level.name = prompt 'Level name:', @level.name ? ''
 
 			if atom.input.pressed 'reset'
 				@reset()
