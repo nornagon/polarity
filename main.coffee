@@ -255,8 +255,8 @@ States =
 			if player_polarity
 				for _,n of @level.nodes
 					polarity = if n.type is 'positive' then 1 else -1
-					dx = (n.x*TILE_SIZE - @player.p.x) * player_polarity * polarity
-					dy = (n.y*TILE_SIZE - @player.p.y) * player_polarity * polarity
+					dx = ((n.x+0.5)*TILE_SIZE - @player.p.x) * player_polarity * polarity
+					dy = ((n.y+0.5)*TILE_SIZE - @player.p.y) * player_polarity * polarity
 					norm = Math.sqrt(dx*dx+dy*dy)
 					nx = dx/norm
 					ny = dy/norm
