@@ -93,6 +93,18 @@ Tiles =
 		tile: animAt 5, 32, 48, 11, 11
 		draw: (f,x,y) -> drawFrame @tile, f, x, y
 
+	shrapnel:
+		[
+			tile: tileAt 76, 21, 3, 3
+			draw: (x, y) -> drawTile @tile, x-@tile.w/2, y-@tile.h/2
+		,
+			tile: tileAt 81, 22, 2, 2
+			draw: (x, y) -> drawTile @tile, x-@tile.w/2, y-@tile.h/2
+		,
+			tile: tileAt 81, 16, 3, 3
+			draw: (x, y) -> drawTile @tile, x-@tile.w/2, y-@tile.h/2
+		]
+
 
 empty_level = {"tiles":{"5,6":"block","8,6":"block","6,6":"block","7,6":"block"}, "player_start":{x:7,y:8}}
 
@@ -248,9 +260,17 @@ class Game extends atom.Game
 			shape.group = 'shrapnel'
 			body.setPos v(p.x, p.y)
 			body.setVelocity v(mrnd(50), 50+mrnd(20))
+			body.w = mrnd(5)
 			@space.addBody body
 			@space.addShape shape
 			do (shape, body) =>
+				i = irnd Tiles.shrapnel.length
+				shape.draw = ->
+					ctx.save()
+					ctx.translate @body.p.x, @body.p.y
+					ctx.rotate @body.a
+					Tiles.shrapnel[i].draw 0, 0
+					ctx.restore()
 				@in 30+irnd(60), =>
 					@space.removeShape shape
 					@space.removeBody body
