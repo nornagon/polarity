@@ -6,6 +6,7 @@ v = cp.v
 
 atom.input.bind atom.key.A, 'a'
 atom.input.bind atom.key.S, 's'
+atom.input.bind atom.key.V, 'save'
 
 atom.input.bind atom.key.P, 'edit'
 atom.input.bind atom.button.LEFT, 'click'
@@ -33,20 +34,37 @@ Tiles =
 		draw: (x, y) ->
 			ctx.fillStyle = 'red'
 			ctx.fillRect x, y, TILE_SIZE, TILE_SIZE
+		ethereal: true
 	negative:
 		draw: (x, y) ->
 			ctx.fillStyle = 'green'
 			ctx.fillRect x, y, TILE_SIZE, TILE_SIZE
+		ethereal: true
 	antimatter:
 		draw: (x, y) ->
 			ctx.fillStyle = 'pink'
 			ctx.fillRect x, y, TILE_SIZE, TILE_SIZE
+		sensor: true
+	goal:
+		draw: (x, y) ->
+			ctx.fillStyle = 'rgb(228,219,84)'
+			ctx.fillRect x, y, TILE_SIZE, TILE_SIZE
+		sensor: true
+
+	player_start:
+		ethereal: true
+		draw: (x, y) ->
+			ctx.strokeStyle = 'black'
+			ctx.lineWidth = 1
+			ctx.beginPath()
+			ctx.moveTo x,y
+			ctx.lineTo x+TILE_SIZE, y+TILE_SIZE
+			ctx.moveTo x+TILE_SIZE, y
+			ctx.lineTo x, y+TILE_SIZE
+			ctx.stroke()
 
 
-levels = [
-	{"tiles":{"32,6":"block","11,11":"block","28,11":"block","33,6":"block","34,11":"block","13,13":"positive","19,13":"positive","33,11":"block","13,11":"block","9,6":"block","16,11":"block","17,11":"block","21,11":"block","31,11":"block","29,4":"block","12,11":"block","19,12":"positive","30,5":"block","30,4":"block","20,11":"block","28,4":"block","13,12":"positive","26,11":"block","25,11":"block","24,11":"block","23,11":"block","22,11":"block","32,11":"block","18,11":"block","5,11":"block","5,10":"block","5,9":"block","5,8":"block","5,7":"block","5,6":"block","6,6":"block","7,6":"block","8,6":"block","14,11":"block","15,11":"block","36,11":"block","19,11":"block","10,6":"block","11,6":"block","34,6":"block","36,7":"block","36,8":"block","11,5":"block","35,6":"block","36,6":"block","36,9":"block","11,4":"block","12,4":"block","13,4":"block","14,4":"block","15,4":"block","16,4":"block","17,4":"block","18,4":"block","19,4":"block","36,10":"block","35,11":"block","8,11":"block","10,11":"block","20,4":"block","21,4":"block","22,4":"block","23,4":"block","24,4":"block","25,4":"block","26,4":"block","27,4":"block","7,11":"block","6,11":"block","9,11":"block","25,12":"negative","25,13":"negative","30,11":"block","27,11":"block","29,11":"block","30,6":"block","31,6":"block","12,5":"antimatter","13,5":"antimatter","14,5":"antimatter","15,5":"antimatter","16,5":"antimatter","17,5":"antimatter","18,5":"antimatter","19,5":"antimatter","20,5":"antimatter","21,5":"antimatter","22,5":"antimatter","23,5":"antimatter","24,5":"antimatter","25,5":"antimatter","26,5":"antimatter","27,5":"antimatter","28,5":"antimatter","29,5":"antimatter"}, "player_start": {x:7,y:8}}
-]
-
+empty_level = {"tiles":{"5,6":"block","8,6":"block","6,6":"block","7,6":"block"}, "player_start":{x:7,y:8}}
 
 class Level
 	constructor: (json) ->
@@ -63,23 +81,26 @@ class Level
 		@occupyTile t for t in @tiles
 	occupyTile: (t) ->
 		{x, y, type} = t
-		return unless Level.blocks type
+		return if Tiles[type].ethereal
 		t.shape = new cp.BoxShape2 @space.staticBody,
 			{l:x*TILE_SIZE, b:y*TILE_SIZE, r:(x+1)*TILE_SIZE, t:(y+1)*TILE_SIZE}
 		t.shape.setElasticity 0.4
 		t.shape.setFriction 0.8
-		if type is 'antimatter'
-			t.shape.collision_type = 'antimatter'
+		t.shape.collision_type = type
+		if Tiles[type].sensor
 			t.shape.sensor = true
 		@space.addShape t.shape
 
 	export: ->
-		json = {tiles:{}}
+		json = {tiles:{}, player_start:@player_start}
 		for t in @tiles
 			json.tiles[[t.x,t.y]] = t.type
 		json
 
 	setTile: (x, y, type) ->
+		if type is 'player_start'
+			@player_start = {x, y}
+			return
 		delete @nodes[[x,y]]
 		for t,i in @tiles
 			if t.x == x and t.y == y
@@ -95,18 +116,21 @@ class Level
 		if type in ['positive','negative']
 			@nodes[[x,y]] = {x,y,type}
 
-	@blocks: (type) -> type in ['block', 'antimatter']
-
-	draw: ->
+	draw: (edit_mode) ->
 		for {x, y, type} in @tiles
 			if type of Tiles
 				Tiles[type].draw(x*TILE_SIZE,y*TILE_SIZE)
+		if edit_mode
+			Tiles.player_start.draw @player_start.x*TILE_SIZE, @player_start.y*TILE_SIZE
+		return
 
 
 class Game extends atom.Game
 	constructor: ->
 		@state = 'playing'
-		@level = new Level levels[0]
+		@levels = (new Level l for l in level_data)
+		@levelNum = 0
+		@level = @levels[@levelNum]
 		@reset()
 
 	reset: ->
@@ -118,6 +142,8 @@ class Game extends atom.Game
 		@space.addCollisionHandler 'player', 'antimatter', (arb) =>
 			@space.addPostStepCallback @playerDied
 			return false
+		@space.addCollisionHandler 'player', 'goal', (arb) =>
+			@space.addPostStepCallback @reachedGoal
 
 		@level.occupy @space
 
@@ -136,7 +162,7 @@ class Game extends atom.Game
 		
 
 		@player = new cp.Body 1, cp.momentForCircle 1, 0, 5, v(0,0)
-		@player.setPos v(@level.player_start.x * TILE_SIZE, @level.player_start.y * TILE_SIZE)
+		@player.setPos v((@level.player_start.x+0.5) * TILE_SIZE, (@level.player_start.y+0.5) * TILE_SIZE)
 		@space.addBody @player
 		shape = @space.addShape new cp.CircleShape @player, 5, v(0,0)
 		shape.setElasticity 0.5
@@ -151,6 +177,12 @@ class Game extends atom.Game
 			ctx.arc @tc.x, @tc.y, 5, 0, Math.PI*2
 			ctx.stroke()
 
+
+	reachedGoal: =>
+		if @levelNum is @levels.length-1
+			@levels.push new Level empty_level
+		@level = @levels[++@levelNum]
+		@reset()
 
 	playerDied: =>
 		return if @playerDead
@@ -237,7 +269,7 @@ States =
 			ctx.translate 0, canvas.height
 			ctx.scale 1, -1
 
-			@level.draw()
+			@level.draw(@state is 'editing')
 			@space.activeShapes.each (s) ->
 				s.draw()
 
@@ -264,6 +296,12 @@ States =
 				tx = Math.floor x/TILE_SIZE
 				ty = Math.floor y/TILE_SIZE
 				@level.setTile tx, ty, @tileToPlace
+
+			if atom.input.pressed 'save'
+				req = new XMLHttpRequest
+				req.open 'POST', window.location.origin + '/save', true
+				req.setRequestHeader 'Content-Type', 'application/json;charset=UTF-8'
+				req.send JSON.stringify (l.export() for l in @levels)
 
 		draw: ->
 			States.playing.draw.call @
