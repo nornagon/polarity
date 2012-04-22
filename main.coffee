@@ -523,7 +523,8 @@ States =
 			ctx.font = '14px "04b19Regular"'
 			ctx.textAlign = 'left'
 			ctx.textBaseline = 'bottom'
-			ctx.fillText "Level #{@levelNum + 1}", @level_num_x, 50
+			num_text = if @levelNum is @levels.length-1 then 'The End' else "Level #{@levelNum + 1}"
+			ctx.fillText num_text, @level_num_x, 50
 			ctx.textBaseline = 'top'
 			ctx.font = '28px "04b19Regular"'
 			ctx.fillText (@level.name ? 'Unnamed').toUpperCase(), @level_name_x, 60
