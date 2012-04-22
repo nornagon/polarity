@@ -158,11 +158,14 @@ class Level
 
 class Game extends atom.Game
 	constructor: ->
-		@state = 'playing'
 		@levels = (new Level l for l in level_data)
 		@levelNum = 0
 		@level = @levels[@levelNum]
+		@state = 'playing'
 		@reset()
+
+		@state = 'levelTransition'
+		States[@state].init.call this
 
 	reset: ->
 		@frameNo = 0
@@ -217,7 +220,11 @@ class Game extends atom.Game
 
 
 	reachedGoal: =>
-		if @levelNum is @levels.length-1
+		@forward()
+		@state = 'levelTransition'
+		States[@state].init.call this
+	forward: =>
+		if @levelNum >= @levels.length-1
 			@levels.push new Level empty_level
 		@level = @levels[++@levelNum]
 		@reset()
@@ -318,6 +325,36 @@ States =
 				s.draw()
 
 			ctx.restore()
+			ctx.font = '14px "04b19Regular"'
+			ctx.fillStyle = 'white'
+			ctx.textBaseline = 'top'
+			ctx.fillText (@level.name ? 'Unnamed').toUpperCase(), 3, 3
+
+	levelTransition:
+		init: ->
+			@level_num_x = -300
+			@level_name_x = canvas.width + 50
+			@level_anim_t = 0
+		update: (dt) ->
+			vel = (t) ->
+				if 0.4 < t < 1.9
+					30
+				else
+					900
+			@level_num_x += vel(@level_anim_t) * dt
+			@level_name_x -= vel(@level_anim_t) * dt
+			@level_anim_t += dt
+
+			if @level_anim_t > 2.4
+				@state = 'playing'
+		draw: ->
+			ctx.fillStyle = 'white'
+			ctx.font = '14px "04b19Regular"'
+			ctx.textBaseline = 'bottom'
+			ctx.fillText "Level #{@levelNum + 1}", @level_num_x, 50
+			ctx.textBaseline = 'top'
+			ctx.font = '28px "04b19Regular"'
+			ctx.fillText (@level.name ? 'Unnamed').toUpperCase(), @level_name_x, 60
 
 	editing:
 		update: ->
@@ -348,7 +385,7 @@ States =
 				req.send JSON.stringify (l.export() for l in @levels)
 
 			if atom.input.pressed 'skip'
-				@reachedGoal()
+				@forward()
 			if atom.input.pressed 'back'
 				@back()
 
