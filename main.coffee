@@ -6,11 +6,13 @@ v = cp.v
 
 atom.input.bind atom.key.A, 'a'
 atom.input.bind atom.key.S, 's'
-atom.input.bind atom.key.V, 'save'
 
 atom.input.bind atom.key.P, 'edit'
 atom.input.bind atom.button.LEFT, 'click'
 atom.input.bind atom.key.SPACE, 'select'
+atom.input.bind atom.key.V, 'save'
+atom.input.bind atom.key.R, 'reset'
+atom.input.bind atom.key.N, 'skip'
 
 rnd = (n) -> n * Math.random()
 mrnd = (n) -> n * (2*Math.random()-1)
@@ -302,6 +304,12 @@ States =
 				req.open 'POST', window.location.origin + '/save', true
 				req.setRequestHeader 'Content-Type', 'application/json;charset=UTF-8'
 				req.send JSON.stringify (l.export() for l in @levels)
+
+			if atom.input.pressed 'skip'
+				@reachedGoal()
+
+			if atom.input.pressed 'reset'
+				@reset()
 
 		draw: ->
 			States.playing.draw.call @
