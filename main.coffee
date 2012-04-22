@@ -16,8 +16,8 @@ atom.input.bind atom.key.N, 'skip'
 atom.input.bind atom.key.B, 'back'
 atom.input.bind atom.key.M, 'name'
 
-rnd = (n) -> n * Math.random()
-mrnd = (n) -> n * (2*Math.random()-1)
+rnd = (n=1) -> n * Math.random()
+mrnd = (n=1) -> n * (2*Math.random()-1)
 irnd = (n) -> Math.floor n * Math.random()
 
 parseXY = (k) ->
@@ -93,20 +93,24 @@ Tiles =
 		tile: animAt 5, 32, 48, 11, 11
 		draw: (f,x,y) -> drawFrame @tile, f, x, y
 
-	shrapnel:
-		[
-			tile: tileAt 76, 21, 3, 3
-			draw: (x, y) -> drawTile @tile, x-@tile.w/2, y-@tile.h/2
-		,
-			tile: tileAt 81, 22, 2, 2
-			draw: (x, y) -> drawTile @tile, x-@tile.w/2, y-@tile.h/2
-		,
-			tile: tileAt 81, 16, 3, 3
-			draw: (x, y) -> drawTile @tile, x-@tile.w/2, y-@tile.h/2
-		]
+
+Shrapnel =
+	[
+		tile: tileAt 76, 21, 3, 3
+		draw: (x, y) -> drawTile @tile, x-@tile.w/2, y-@tile.h/2
+	,
+		tile: tileAt 81, 22, 2, 2
+		draw: (x, y) -> drawTile @tile, x-@tile.w/2, y-@tile.h/2
+	,
+		tile: tileAt 81, 16, 3, 3
+		draw: (x, y) -> drawTile @tile, x-@tile.w/2, y-@tile.h/2
+	]
 
 
 empty_level = {"tiles":{"5,6":"block","8,6":"block","6,6":"block","7,6":"block"}, "player_start":{x:7,y:8}}
+
+attract_level =
+  {"name":"","tiles":{"8,8":"antimatter","6,8":"block","9,8":"block","35,-1":"block","6,7":"block","2,16":"block","2,15":"block","2,14":"block","2,13":"block","2,12":"block","2,11":"block","2,10":"block","2,9":"block","2,8":"block","3,8":"block","4,8":"block","5,8":"block","35,3":"antimatter","39,9":"positive","2,17":"block","2,18":"block","2,19":"block","36,2":"block","35,2":"block","34,2":"block","4,12":"block","4,13":"block","4,14":"block","4,15":"block","4,16":"block","4,17":"block","4,18":"block","4,19":"block","37,2":"block","38,2":"block","2,-1":"block","4,-1":"block","9,9":"block","10,9":"positive","38,-1":"block","36,3":"antimatter","37,3":"antimatter","38,3":"block","9,10":"block","9,11":"block","38,19":"block","38,18":"block","38,17":"block","38,16":"block","38,15":"block","38,14":"block","38,13":"block","38,12":"block","38,11":"block","38,10":"block","38,9":"block","35,19":"block","35,18":"block","35,17":"block","35,16":"block","35,15":"block","35,14":"block","35,13":"block","35,12":"block","35,11":"block","35,10":"block","34,10":"block","38,8":"block","37,8":"block","36,8":"block","35,8":"block","34,8":"block","33,10":"block","32,10":"block","31,10":"block","31,9":"block","31,8":"block","7,8":"antimatter","31,7":"block","31,6":"block","31,5":"block","31,4":"block","34,7":"block","34,6":"block","35,6":"block","36,6":"block","37,6":"block","38,6":"block","38,4":"block","38,5":"block","31,3":"block","32,3":"block","33,3":"block","34,3":"block","8,11":"block","7,11":"block","6,11":"block","5,11":"block","4,11":"block","9,7":"block","8,7":"block","7,7":"block","31,12":"player_negative","39,4":"negative"}}
 
 class Level
 	constructor: (json) ->
@@ -163,7 +167,7 @@ class Level
 		for {x, y, type} in @tiles
 			if type of Tiles
 				Tiles[type].draw(x*TILE_SIZE,y*TILE_SIZE)
-		if edit_mode
+		if edit_mode and @player_start
 			Tiles.player_start.draw @player_start.x*TILE_SIZE, @player_start.y*TILE_SIZE
 		return
 
@@ -176,8 +180,8 @@ class Game extends atom.Game
 		@state = 'playing'
 		@reset()
 
-		@state = 'levelTransition'
-		States[@state].init.call this
+		@state = 'title'
+		States[@state].init?.call this
 
 	reset: ->
 		@frameNo = 0
@@ -198,6 +202,18 @@ class Game extends atom.Game
 				@space.addPostStepCallback @reachedGoal
 			return false
 
+		@space.addCollisionHandler 'ball', 'shrapnel', -> false
+
+		@space.addCollisionHandler 'ball', 'antimatter', (arb) =>
+			if arb.body_a in @balls
+				@balls = (b for b in @balls when b != arb.body_a)
+				b = arb.body_a
+				p = v(arb.body_a.p.x, arb.body_a.p.y)
+				@space.addPostStepCallback =>
+					@space.removeShape b.shapeList[0]
+					@space.removeBody b
+					@shrapnel p
+
 		@level.occupy @space
 
 		@space.gravity = v(0,-50)
@@ -214,22 +230,39 @@ class Game extends atom.Game
 		wall2.setFriction(1)
 		
 
-		@player = new cp.Body 1, cp.momentForCircle 1, 0, 5, v(0,0)
-		@player.setPos v((@level.player_start.x+0.5) * TILE_SIZE, (@level.player_start.y+0.5) * TILE_SIZE)
-		@space.addBody @player
-		shape = @space.addShape new cp.CircleShape @player, 5, v(0,0)
+		if @level.player_start?
+			@player = new cp.Body 1, cp.momentForCircle 1, 0, 5, v(0,0)
+			@player.setPos v((@level.player_start.x+0.5) * TILE_SIZE, (@level.player_start.y+0.5) * TILE_SIZE)
+			@space.addBody @player
+			shape = @space.addShape new cp.CircleShape @player, 5, v(0,0)
+			shape.setElasticity 0.5
+			shape.setFriction 0.8
+			shape.collision_type = 'player'
+			that = this
+			shape.draw = ->
+				style = if atom.input.down 'a' then '_positive' else if atom.input.down 's' then '_negative' else ''
+				tile = "player#{style}"
+				frame = Math.floor((that.frameNo - that.player_anim_start) / 3)
+				if frame >= Tiles[tile].tile.frames then frame = 0
+				Tiles[tile].draw frame, @tc.x-Tiles[tile].tile.w/2, @tc.y-Tiles[tile].tile.w/2
+
+
+	makeBall: (polarity, x, y) ->
+		@balls ?= []
+		ball = new cp.Body 1, cp.momentForCircle 1, 0, 5, v(0,0)
+		ball.polarity = polarity
+		@balls.push ball
+		ball.setPos v((x+0.5) * TILE_SIZE, (y+0.5) * TILE_SIZE)
+		@space.addBody ball
+		shape = @space.addShape new cp.CircleShape ball, 5, v(0,0)
 		shape.setElasticity 0.5
 		shape.setFriction 0.8
-		shape.collision_type = 'player'
+		shape.collision_type = 'ball'
 		that = this
 		shape.draw = ->
-			style = if atom.input.down 'a' then '_positive' else if atom.input.down 's' then '_negative' else ''
+			style = if polarity > 0 then '_positive' else if polarity < 0 then '_negative' else ''
 			tile = "player#{style}"
-			frame = Math.floor((that.frameNo - that.player_anim_start) / 3)
-			if frame >= Tiles[tile].tile.frames then frame = 0
-			Tiles[tile].draw frame, @tc.x-Tiles[tile].tile.w/2, @tc.y-Tiles[tile].tile.w/2
-
-
+			Tiles[tile].draw 0, @tc.x-Tiles[tile].tile.w/2, @tc.y-Tiles[tile].tile.w/2
 
 	reachedGoal: =>
 		@forward()
@@ -258,18 +291,19 @@ class Game extends atom.Game
 			body = new cp.Body 1, cp.momentForCircle 1, 0, 2, v(0,0)
 			shape = new cp.CircleShape body, 2, v(0,0)
 			shape.group = 'shrapnel'
+			shape.collision_type = 'shrapnel'
 			body.setPos v(p.x, p.y)
 			body.setVelocity v(mrnd(50), 50+mrnd(20))
 			body.w = mrnd(5)
 			@space.addBody body
 			@space.addShape shape
 			do (shape, body) =>
-				i = irnd Tiles.shrapnel.length
+				i = irnd Shrapnel.length
 				shape.draw = ->
 					ctx.save()
 					ctx.translate @body.p.x, @body.p.y
 					ctx.rotate @body.a
-					Tiles.shrapnel[i].draw 0, 0
+					Shrapnel[i].draw 0, 0
 					ctx.restore()
 				@in 30+irnd(60), =>
 					@space.removeShape shape
@@ -292,6 +326,34 @@ class Game extends atom.Game
 		States[@state].draw.call this
 
 States =
+	title:
+		init: ->
+			@level = new Level attract_level
+			@reset()
+		update: (dt) ->
+			States.playing.update.call(this, dt)
+			if rnd() < 0.005
+				@makeBall 1,3,20
+			if rnd() < 0.005
+				@makeBall -1,37-irnd(2),20
+		draw: ->
+			States.playing.draw.call(this)
+			ctx.fillStyle = 'rgba(29,37,46,0.6)'
+			ctx.fillRect 0, 0, canvas.width, canvas.height
+			ctx.textBaseline = 'top'
+			ctx.font = '56px "04b19Regular"'
+			ctx.textAlign = 'center'
+			ctx.fillStyle = 'white'
+			ctx.fillText 'POLARITY', canvas.width/2, 20
+			ctx.font = '28px "04b19Regular"'
+			ctx.fillText 'PRESS A TO START!', canvas.width/2, 120
+			ctx.font = '14px "04b19Regular"'
+			#ctx.fillStyle = 'rgb(60, 142, 231)'
+			ctx.fillStyle = 'rgb(143,182,214)'
+			ctx.fillText 'A game by Jeremy Apthorp.', canvas.width/2, 80
+			ctx.fillText 'Made in 48 hours', canvas.width/2, 160
+			ctx.fillText 'for Ludum Dare #23.', canvas.width/2, 176
+
 	playing:
 		update: (dt) ->
 			if atom.input.pressed 'edit'
@@ -307,28 +369,43 @@ States =
 				if atom.input.pressed('a') or atom.input.pressed('s')
 					@player_anim_start = @frameNo
 
-			force = {x:0, y:0}
+			force_between = (b,p, n) ->
+				polarity = if n.type is 'positive' then 1 else -1
+				dx = ((n.x+0.5)*TILE_SIZE - b.x) * p * polarity
+				dy = ((n.y+0.5)*TILE_SIZE - b.y) * p * polarity
+				norm = Math.sqrt(dx*dx+dy*dy)
+				nx = dx/norm
+				ny = dy/norm
+				# F = qQ/r^2
+				# take qQ = k for now
+				k = 80
+				norm /= 50
+				if norm < 1 then norm = 1
+				norm2 = norm * norm
+				f_x = k / norm2 * nx
+				f_y = k / norm2 * ny
+				{x:f_x, y:f_y}
 
+			force = {x:0, y:0}
 			if player_polarity
 				for _,n of @level.nodes
-					polarity = if n.type is 'positive' then 1 else -1
-					dx = ((n.x+0.5)*TILE_SIZE - @player.p.x) * player_polarity * polarity
-					dy = ((n.y+0.5)*TILE_SIZE - @player.p.y) * player_polarity * polarity
-					norm = Math.sqrt(dx*dx+dy*dy)
-					nx = dx/norm
-					ny = dy/norm
-					# F = qQ/r^2
-					# take qQ = k for now
-					k = 80
-					norm /= 50
-					if norm < 1 then norm = 1
-					norm2 = norm * norm
-					f_x = k / norm2 * nx
-					f_y = k / norm2 * ny
-					force.x += f_x
-					force.y += f_y
+					f = force_between @player.p, player_polarity, n
+					force.x += f.x
+					force.y += f.y
 
 			@player?.applyForce v(force.x, force.y), v(0,0)
+
+			if @balls
+				for b in @balls
+					force = {x:0, y:0}
+					for _,n of @level.nodes
+						f = force_between b.p, b.polarity, n
+						force.x += f.x
+						force.y += f.y
+					b.resetForces()
+					b.applyForce v(force.x, force.y), v(0,0)
+					
+
 			@space.step 1/30
 			@player?.resetForces()
 			@frameNo++
@@ -347,6 +424,7 @@ States =
 			ctx.restore()
 			ctx.font = '14px "04b19Regular"'
 			ctx.fillStyle = 'white'
+			ctx.textAlign = 'left'
 			ctx.textBaseline = 'top'
 			ctx.fillText (@level.name ? 'Unnamed').toUpperCase(), 3, 3
 
@@ -370,6 +448,7 @@ States =
 		draw: ->
 			ctx.fillStyle = 'white'
 			ctx.font = '14px "04b19Regular"'
+			ctx.textAlign = 'left'
 			ctx.textBaseline = 'bottom'
 			ctx.fillText "Level #{@levelNum + 1}", @level_num_x, 50
 			ctx.textBaseline = 'top'
