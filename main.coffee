@@ -31,7 +31,7 @@ for s, url of sfx
 
 audioCtx = atom.audioContext
 mixer = audioCtx?.createGainNode()
-mixer.gain.value = 0.3
+mixer?.gain.value = 0.3
 mixer?.connect audioCtx.destination
 
 play = (name, time = 0) ->
