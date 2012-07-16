@@ -281,12 +281,12 @@ class Game extends atom.Game
 		
 
 		if @level.player_start?
-			@player = new cp.Body 1, cp.momentForCircle 1, 0, 5, v(0,0)
+			@player = new cp.Body 1, Infinity
 			@player.setPos v((@level.player_start.x+0.5) * TILE_SIZE, (@level.player_start.y+0.5) * TILE_SIZE)
 			@space.addBody @player
 			shape = @space.addShape new cp.CircleShape @player, 5, v(0,0)
 			shape.setElasticity 0.5
-			shape.setFriction 0.8
+			shape.setFriction 0.1
 			shape.collision_type = 'player'
 			that = this
 			shape.draw = ->
