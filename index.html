@@ -1,4 +1,15 @@
+<html itemscope itemtype="http://schema.org/Game">
+<head>
 <title>POLARITY</title>
+<meta itemprop="name" content="POLARITY">
+<meta itemprop="description" content="POLARITY is my entry for Ludum Dare #23, made in 48 hours. Change your polarity, solve puzzles!">
+<meta itemprop="image" content="http://nornagon.net/games/polarity/polarity.png">
+<meta property="og:title" content="POLARITY" />
+<meta property="og:type" content="game" />
+<meta property="og:url" content="http://nornagon.net/games/polarity" />
+<meta property="og:image" content="http://nornagon.net/games/polarity/polarity.png" />
+<meta property="og:site_name" content="nornagon.net" />
+<meta property="fb:admins" content="10150576905228708" />
 <style>
 .centerbox {
   /* flexbox, por favor */
@@ -48,14 +59,49 @@ body {
 a:link, a:visited {
   color: #9BAABF;
 }
+
+.social {
+  margin-top: 10px;
+  position: relative;
+  left: 24px;
+}
+.fb-like { top: -2px }
 </style>
+</head>
+<body>
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
 <div class='centerbox'><div><canvas></canvas><div style='margin-top:
       4em; text-shadow: 1px 1px rgba(0,0,0,0.3)'>(I'm <a href='http://nornagon.net'>nornagon</a>, and this is just one
       of <a href='http://nornagon.net/games'>my games</a>.<br/>This is
       an entry for <a href='http://ludumdare.com/compo'>Ludum Dare</a> #23. If
   you like it, <a
     href='http://www.ludumdare.com/compo/ludum-dare-23/?action=rate&uid=11649'>rate
-    it</a>!)</div></div>
+    it</a>!)</div>
+<div class='social'>
+  <g:plusone size="medium" annotation="none"></g:plusone>
+  <a href="https://twitter.com/share" class="twitter-share-button"
+    data-size="small" data-count="none" data-via="nornagon">Tweet</a>
+  <div class="fb-like" data-href="http://nornagon.net/games/polarity" data-send="false" data-layout="button_count" data-width="90" data-show-faces="false" data-font="arial"></div>
+</div>
+</div>
+
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+<script type="text/javascript">
+  (function() {
+   var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+   po.src = 'https://apis.google.com/js/plusone.js';
+   var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+   })();
+ </script>
+
 <script src='atom.js'></script>
 <script src='cp.js'></script>
 <script src='levels.js'></script>
@@ -75,3 +121,5 @@ a:link, a:visited {
   })();
 
 </script>
+</body>
+</html>
