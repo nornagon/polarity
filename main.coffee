@@ -30,7 +30,7 @@ for s, url of sfx
       sounds[s] = buffer if buffer
 
 audioCtx = atom.audioContext
-mixer = audioCtx?.createGainNode()
+mixer = audioCtx?.createGain()
 mixer?.gain.value = 0.3
 mixer?.connect audioCtx.destination
 
